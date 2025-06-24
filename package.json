@@ -1,0 +1,33 @@
+{
+  "name": "monad-music-nft",
+  "version": "1.0.0",
+  "description": "Music NFT contract and dApp for Monad Testnet",
+  "main": "index.js",
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "deploy": "npx hardhat run scripts/deploy.js --network monadTestnet",
+    "mint": "npx hardhat run scripts/mint-example.js --network monadTestnet",
+    "test": "npx hardhat test",
+    "node": "npx hardhat node"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
+    "hardhat": "^2.25.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.9.6",
+    "ethers": "^5.8.0"
+  },
+  "keywords": [
+    "nft",
+    "music",
+    "monad",
+    "blockchain",
+    "ethereum"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "directories": {
+    "test": "test"
+  }
+}

@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monad Music NFT Player</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
+    <script src="https://unpkg.com/web3.storage/dist/bundle.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+
+        .connect-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .music-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .music-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .music-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+        }
+
+        .cover-art {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cover-art img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 15px;
+        }
+
+        .music-info h3 {
+            font-size: 1.3rem;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+
+        .music-info p {
+            opacity: 0.8;
+            margin-bottom: 3px;
+        }
+
+        .play-controls {
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .play-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .play-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+
+        .time-display {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .mint-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .status.success {
+            background: rgba(76, 175, 80, 0.3);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+        }
+
+        .status.error {
+            background: rgba(244, 67, 54, 0.3);
+            border: 1px solid rgba(244, 67, 54, 0.5);
+        }
+
+        .status.info {
+            background: rgba(33, 150, 243, 0.3);
+            border: 1px solid rgba(33, 150, 243, 0.5);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .audio-player {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .music-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎵 Monad Music NFT</h1>
+            <p>Koleksi dan putar musik NFT eksklusif di Monad Testnet</p>
+        </div>
+
+        <div class="connect-section">
+            <button id="connectWallet" class="btn">Connect Wallet</button>
+            <button id="switchNetwork" class="btn hidden">Switch to Monad Testnet</button>
+            <p id="walletAddress" class="hidden"></p>
+        </div>
+
+        <div id="loadingSection" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Loading your music collection...</p>
+        </div>
+
+        <div id="musicSection" class="hidden">
+            <h2>🎶 Your Music Collection</h2>
+            <div id="musicGrid" class="music-grid"></div>
+        </div>
+
+        <div id="mintSection" class="mint-section hidden">
+            <h2>🎤 Mint New Music NFT</h2>
+            <div class="form-group">
+                <label for="title">Song Title:</label>
+                <input type="text" id="title" placeholder="Enter song title" required>
+            </div>
+            <div class="form-group">
+                <label for="artist">Artist:</label>
+                <input type="text" id="artist" placeholder="Enter artist name" required>
+            </div>
+            <div class="form-group">
+                <label for="genre">Genre:</label>
+                <select id="genre" required>
+                    <option value="">Select Genre</option>
+                    <option value="Pop">Pop</option>
+                    <option value="Rock">Rock</option>
+                    <option value="Hip-Hop">Hip-Hop</option>
+                    <option value="Electronic">Electronic</option>
+                    <option value="Jazz">Jazz</option>
+                    <option value="Classical">Classical</option>
+                    <option value="R&B">R&B</option>
+                    <option value="Country">Country</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="duration">Duration (seconds):</label>
+                <input type="number" id="duration" placeholder="Enter duration in seconds" required>
+            </div>
+            <div class="form-group">
+                <label for="audioFile">Audio File:</label>
+                <input type="file" id="audioFile" accept="audio/*" required>
+            </div>
+            <div class="form-group">
+                <label for="coverFile">Cover Art:</label>
+                <input type="file" id="coverFile" accept="image/*">
+            </div>
+            <button id="mintNFT" class="btn">Mint Music NFT (0.01 MON)</button>
+        </div>
+
+        <div id="statusMessage" class="status hidden"></div>
+        
+        <audio id="audioPlayer" class="audio-player" controls></audio>
+    </div>
+
+    <script>
+    window.onload = function() {
+        const CONTRACT_ADDRESS = "0x239F0991209Dc1DeA0FE4Ce765746988838f77BF";
+        const MONAD_TESTNET_CONFIG = {
+            chainId: '0x279F', 
+            chainName: 'Monad Testnet',
+            nativeCurrency: {
+                name: 'MON',
+                symbol: 'MON',
+                decimals: 18
+            },
+            rpcUrls: ['https://testnet-rpc.monad.xyz'],
+            blockExplorerUrls: ['https://testnet.monadexplorer.com']
+        };
+
+        const CONTRACT_ABI = [
+            "function mintMusicNFT(address to, string memory title, string memory artist, string memory genre, uint256 duration, string memory audioIPFSHash, string memory coverIPFSHash, string memory tokenURI) public payable",
+            "function getUserTokens(address user) view returns (uint256[])",
+            "function getMusicData(uint256 tokenId) public view returns (tuple(string title, string artist, string genre, uint256 duration, string audioIPFSHash, string coverIPFSHash, uint256 mintedAt, bool isActive))",
+            "function playMusic(uint256 tokenId) public",
+            "function mintPrice() public view returns (uint256)",
+            "function totalSupply() public view returns (uint256)"
+        ];
+
+        let web3Provider = null;
+        let walletSigner = null;
+        let musicContract = null;
+        let readOnlyContract = null;
+        let currentAudio = null;
+        let userAddress = '';
+
+        const connectWalletBtn = document.getElementById('connectWallet');
+        const switchNetworkBtn = document.getElementById('switchNetwork');
+        const walletAddress = document.getElementById('walletAddress');
+        const loadingSection = document.getElementById('loadingSection');
+        const musicSection = document.getElementById('musicSection');
+        const mintSection = document.getElementById('mintSection');
+        const musicGrid = document.getElementById('musicGrid');
+        const statusMessage = document.getElementById('statusMessage');
+        const mintNFTBtn = document.getElementById('mintNFT');
+        const audioPlayer = document.getElementById('audioPlayer');
+
+        // Event listeners
+        connectWalletBtn.addEventListener('click', connectWallet);
+        switchNetworkBtn.addEventListener('click', switchToMonadTestnet);
+        mintNFTBtn.addEventListener('click', mintMusicNFT);
+
+        async function connectWallet() {
+            try {
+                if (typeof window.ethereum === 'undefined') {
+                    showStatus('Please install MetaMask to continue!', 'error');
+                    return;
+                }
+                web3Provider = new ethers.BrowserProvider(window.ethereum);
+                const accounts = await web3Provider.send("eth_requestAccounts", []);
+                walletSigner = await web3Provider.getSigner();
+                userAddress = accounts[0];
+                walletAddress.textContent = `Connected: ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+                walletAddress.classList.remove('hidden');
+                connectWalletBtn.textContent = 'Connected';
+                connectWalletBtn.disabled = true;
+                // Check network
+                const network = await web3Provider.getNetwork();
+                if (network.chainId !== 10143n) { // Monad Testnet chainId
+                    switchNetworkBtn.classList.remove('hidden');
+                    showStatus('Please switch to Monad Testnet', 'info');
+                } else {
+                    initializeContract();
+                }
+            } catch (error) {
+                console.error('Error connecting wallet:', error);
+                showStatus('Error connecting wallet: ' + error.message, 'error');
+            }
+        }
+
+        async function switchToMonadTestnet() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [MONAD_TESTNET_CONFIG]
+                });
+                
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: MONAD_TESTNET_CONFIG.chainId }]
+                });
+
+                switchNetworkBtn.classList.add('hidden');
+                initializeContract();
+                
+            } catch (error) {
+                console.error('Error switching network:', error);
+                showStatus('Error switching to Monad Testnet: ' + error.message, 'error');
+            }
+        }
+
+        async function initializeContract() {
+            try {
+                const customProvider = new ethers.JsonRpcProvider('https://testnet-rpc.monad.xyz', {
+                    chainId: 10143,
+                    name: 'Monad Testnet',
+                    ensAddress: null 
+                });
+                readOnlyContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, customProvider);
+                musicContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, walletSigner);
+                musicSection.classList.remove('hidden');
+                mintSection.classList.remove('hidden');
+                await loadUserMusic();
+                showStatus('Successfully connected to Monad Music NFT!', 'success');
+            } catch (error) {
+                console.error('Error initializing contract:', error);
+                showStatus('Error initializing contract. Make sure contract is deployed.', 'error');
+            }
+        }
+
+        async function loadUserMusic() {
+            try {
+                if (!userAddress || !ethers.isAddress(userAddress)) {
+                    showStatus('Invalid user address', 'error');
+                    return;
+                }
+                loadingSection.classList.remove('hidden');
+                console.log('userAddress:', userAddress, typeof userAddress, JSON.stringify(userAddress));
+                const tokenIds = await readOnlyContract.getUserTokens(userAddress);
+                musicGrid.innerHTML = '';
+                for (let tokenId of tokenIds) {
+                    const musicData = await readOnlyContract.getMusicData(tokenId);
+                    createMusicCard(tokenId, musicData);
+                }
+                loadingSection.classList.add('hidden');
+                if (tokenIds.length === 0) {
+                    musicGrid.innerHTML = '<p style="text-align: center; grid-column: 1/-1; opacity: 0.7;">No music NFTs found. Mint your first one below! 🎵</p>';
+                }
+            } catch (error) {
+                console.error('Error loading user music:', error);
+                loadingSection.classList.add('hidden');
+                showStatus('Error loading music collection: ' + error.message, 'error');
+            }
+        }
+
+        function createMusicCard(tokenId, musicData) {
+            const card = document.createElement('div');
+            card.className = 'music-card';
+            
+            const ipfsGateway = 'https://ipfs.io/ipfs/';
+            const coverUrl = musicData.coverIPFSHash ? 
+                `${ipfsGateway}${musicData.coverIPFSHash}` : '';
+            
+            card.innerHTML = `
+                <div class="cover-art">
+                    ${coverUrl ? 
+                        `<img src="${coverUrl}" alt="Cover Art" onerror="this.style.display='none'; this.parentElement.innerHTML='🎵';">` : 
+                        '🎵'
+                    }
+                </div>
+                <div class="music-info">
+                    <h3>${musicData.title}</h3>
+                    <p><strong>Artist:</strong> ${musicData.artist}</p>
+                    <p><strong>Genre:</strong> ${musicData.genre}</p>
+                    <p><strong>Duration:</strong> ${formatDuration(Number(musicData.duration))}</p>
+                </div>
+                <div class="play-controls">
+                    <button class="play-btn" onclick="playMusic(${tokenId}, '${musicData.audioIPFSHash}', this)">
+                        ▶️
+                    </button>
+                    <div class="progress-bar">
+                        <div class="progress" id="progress-${tokenId}"></div>
+                    </div>
+                    <div class="time-display" id="time-${tokenId}">0:00</div>
+                </div>
+            `;
+            
+            musicGrid.appendChild(card);
+        }
+
+        async function playMusic(tokenId, audioIPFSHash, playBtn) {
+            try {
+                // Stop current audio if playing
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio = null;
+                    // Reset all play buttons
+                    document.querySelectorAll('.play-btn').forEach(btn => {
+                        btn.textContent = '▶️';
+                    });
+                }
+
+                // Call contract playMusic function - this might fail but we'll continue to play audio
+                try {
+                    const tx = await musicContract.playMusic(tokenId);
+                    await tx.wait();
+                } catch (contractError) {
+                    console.log('Contract playMusic failed, but continuing with audio playback:', contractError);
+                }
+
+                // Play audio
+                const audioUrl = `https://ipfs.io/ipfs/${audioIPFSHash}`;
+                audioPlayer.src = audioUrl;
+                audioPlayer.play();
+                currentAudio = audioPlayer;
+
+                // Update UI
+                playBtn.textContent = '⏸️';
+                
+                audioPlayer.onended = () => {
+                    playBtn.textContent = '▶️';
+                    currentAudio = null;
+                };
+
+                audioPlayer.onpause = () => {
+                    playBtn.textContent = '▶️';
+                };
+
+                audioPlayer.onplay = () => {
+                    playBtn.textContent = '⏸️';
+                };
+
+                // Update progress bar
+                audioPlayer.ontimeupdate = () => {
+                    if (audioPlayer.duration) {
+                        const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                        const progressBar = document.getElementById(`progress-${tokenId}`);
+                        const timeDisplay = document.getElementById(`time-${tokenId}`);
+                        if (progressBar) progressBar.style.width = progress + '%';
+                        if (timeDisplay) timeDisplay.textContent = formatTime(audioPlayer.currentTime);
+                    }
+                };
+
+                // Toggle pause/play on button click
+                playBtn.onclick = () => {
+                    if (currentAudio && !currentAudio.paused) {
+                        currentAudio.pause();
+                    } else if (currentAudio) {
+                        currentAudio.play();
+                    } else {
+                        playMusic(tokenId, audioIPFSHash, playBtn);
+                    }
+                };
+
+                showStatus('Playing music...', 'success');
+
+            } catch (error) {
+                console.error('Error playing music:', error);
+                showStatus('Error playing music: ' + error.message, 'error');
+            }
+        }
+
+        async function uploadToIPFS(file) {
+            const client = new Web3Storage.Web3Storage({ token: WEB3STORAGE_TOKEN });
+            const cid = await client.put([file], { wrapWithDirectory: false });
+            return cid;
+        }
+
+        async function mintMusicNFT() {
+            try {
+                const title = document.getElementById('title').value;
+                const artist = document.getElementById('artist').value;
+                const genre = document.getElementById('genre').value;
+                const duration = document.getElementById('duration').value;
+                const audioFile = document.getElementById('audioFile').files[0];
+                const coverFile = document.getElementById('coverFile').files[0];
+                if (!title || !artist || !genre || !duration || !audioFile) {
+                    showStatus('Please fill in all required fields', 'error');
+                    return;
+                }
+                if (!ethers.isAddress(userAddress)) {
+                    showStatus('Invalid address format', 'error');
+                    return;
+                }
+                mintNFTBtn.disabled = true;
+                mintNFTBtn.textContent = 'Minting...';
+                showStatus('Uploading files to IPFS...', 'info');
+
+                // Upload audio to IPFS
+                const audioIPFSHash = await uploadToIPFS(audioFile);
+
+                // Upload cover to IPFS (if provided)
+                let coverIPFSHash = '';
+                if (coverFile) {
+                    coverIPFSHash = await uploadToIPFS(coverFile);
+                }
+
+                // Create metadata
+                const metadata = {
+                    name: title,
+                    description: `Music NFT by ${artist}`,
+                    image: coverIPFSHash ? `ipfs://${coverIPFSHash}` : '',
+                    attributes: [
+                        { trait_type: 'Artist', value: artist },
+                        { trait_type: 'Genre', value: genre },
+                        { trait_type: 'Duration', value: `${duration} seconds` }
+                    ]
+                };
+                const tokenURI = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
+                showStatus('Minting NFT...', 'info');
+                const mintPrice = await readOnlyContract.mintPrice();
+                const tx = await musicContract.mintMusicNFT(
+                    userAddress,
+                    title,
+                    artist,
+                    genre,
+                    parseInt(duration),
+                    audioIPFSHash,
+                    coverIPFSHash,
+                    tokenURI,
+                    { value: mintPrice }
+                );
+                await tx.wait();
+                showStatus('Music NFT minted successfully!', 'success');
+                document.getElementById('title').value = '';
+                document.getElementById('artist').value = '';
+                document.getElementById('genre').value = '';
+                document.getElementById('duration').value = '';
+                document.getElementById('audioFile').value = '';
+                document.getElementById('coverFile').value = '';
+                await loadUserMusic();
+            } catch (error) {
+                console.error('Error minting NFT:', error);
+                showStatus('Error minting NFT: ' + error.message, 'error');
+            } finally {
+                mintNFTBtn.disabled = false;
+                mintNFTBtn.textContent = 'Mint Music NFT (0.01 MON)';
+            }
+        }
+
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status ${type}`;
+            statusMessage.classList.remove('hidden');
+            
+            setTimeout(() => {
+                statusMessage.classList.add('hidden');
+            }, 5000);
+        }
+
+        function formatDuration(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Check if wallet is already connected
+        if (typeof window.ethereum !== 'undefined') {
+            window.ethereum.request({ method: 'eth_accounts' })
+                .then(accounts => {
+                    if (accounts.length > 0) {
+                        connectWallet();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking existing accounts:', error);
+                });
+        }
+    };
+    </script>
+</body>
+</html>
