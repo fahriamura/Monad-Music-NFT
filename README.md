@@ -77,6 +77,25 @@ cp web/.env.json.example web/.env.json
 
 Ensure you update these files with your specific configuration details.
 
+### 6. Vercel Deployment Setup
+
+When deploying to Vercel, you need to configure the environment variables in the Vercel dashboard:
+
+1. Go to your project settings in Vercel
+2. Navigate to the "Environment Variables" section
+3. Add the following environment variables:
+   - `DID_TOKEN`
+   - `CONTRACT_ADDRESS`
+   - `PINATA_JWT`
+4. For local development, use `.env` files
+5. For production, these variables will be read from Vercel's environment
+
+Note: If environment variables are not loading in Vercel:
+- Double check that all variables are properly set in Vercel dashboard
+- Redeploy the project after setting the variables
+- Try prefixing your variables with `NEXT_PUBLIC_` if using Next.js
+- Verify the variable names match exactly between your code and Vercel dashboard
+
 ## 📋 Project Structure
 
 ```
@@ -216,7 +235,7 @@ npx hardhat test --network hardhat
 - **Gas Optimization**: Optimized for gas efficiency
 - **Standard**: ERC721 + ERC721URIStorage
 
-## �� Customization
+## 🎛 Customization
 
 ### Change Mint Price
 

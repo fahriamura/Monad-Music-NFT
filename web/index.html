@@ -755,6 +755,13 @@
     <script>
     window.onload = async function() {
         const loadEnv = async () => {
+            // First try window._env_ (injected by Vercel)
+            if (window._env_) {
+                console.log('Using injected environment variables');
+                return window._env_;
+            }
+
+            // Then try loading from various env files
             const parseEnvText = (txt) => txt.split('\n').reduce((acc, line) => {
                 const [key, ...rest] = line.split('=');
                 if (!key || key.startsWith('#')) return acc;
@@ -789,23 +796,36 @@
                     }
                 } catch (_) { /* ignore and try next */ }
             }
+
+            // If no env files found, try getting from HTML meta tags
+            const envFromMeta = {};
+            document.querySelectorAll('meta[name^="env-"]').forEach(meta => {
+                const key = meta.getAttribute('name').replace('env-', '');
+                envFromMeta[key] = meta.getAttribute('content');
+            });
+            if (Object.keys(envFromMeta).length) {
+                return envFromMeta;
+            }
+
             return {};
         };
 
         const ENV = await loadEnv();
-        if (!ENV.DID_TOKEN || !ENV.CONTRACT_ADDRESS || !ENV.PINATA_JWT) {
-            console.warn('ENV file not found or missing keys. Variables will be undefined.');
+        
+        // Use environment variables with fallbacks
+        const DID_TOKEN = ENV.DID_TOKEN || ENV.NEXT_PUBLIC_DID_TOKEN || '';
+        const PINATA_JWT = ENV.PINATA_JWT || ENV.NEXT_PUBLIC_PINATA_JWT || '';
+        const CONTRACT_ADDRESS = ENV.CONTRACT_ADDRESS || ENV.NEXT_PUBLIC_CONTRACT_ADDRESS || '';
+
+        if (!DID_TOKEN || !CONTRACT_ADDRESS || !PINATA_JWT) {
+            console.warn('Some environment variables are missing. Please check your configuration.');
+            showStatus('Warning: Some configuration values are missing. Some features may not work properly.', 'warning');
         }
         
-        // DID Token sudah terpasang - tidak perlu input user
-        const DID_TOKEN = ENV.DID_TOKEN;
-        
         // Web3.Storage alternative - menggunakan Pinata sebagai backup
-        const PINATA_JWT = ENV.PINATA_JWT; 
         const PINATA_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
         const PINATA_API_ENDPOINT = "https://api.pinata.cloud/pinning/pinFileToIPFS";
         
-        const CONTRACT_ADDRESS = ENV.CONTRACT_ADDRESS;
         const MONAD_TESTNET_CONFIG = {
             chainId: '0x279F', 
             chainName: 'Monad Testnet',
