@@ -1213,60 +1213,52 @@
         // cannot handle FormData (DataCloneError). We try fetch first, then fall back to XMLHttpRequest.
         async function uploadToPinata(file) {
             showStatus(`Uploading ${file.name} to Pinata...`, 'info');
-            const formData = new FormData();
-            formData.append('file', file);
 
-            // Helper that actually parses Pinata response and throws on error
+            // Helper that parses Pinata response and throws on error
             const parsePinataResponse = async (resp) => {
                 if (!resp || resp.status !== 200) {
                     const status = resp ? `${resp.status} ${resp.statusText}` : 'No response';
                     throw new Error(`Pinata upload failed: ${status}`);
                 }
-                let json;
-                try {
-                    json = typeof resp.json === 'function' ? await resp.json() : JSON.parse(resp.responseText);
-                } catch (e) {
-                    throw new Error('Invalid Pinata response');
-                }
+                const json = await resp.json();
                 if (!json.IpfsHash) {
                     throw new Error('Invalid Pinata response');
                 }
                 return json.IpfsHash;
             };
 
-            // Attempt 1: native fetch (might fail due to FormData cloning issue)
+            /*
+             * MetaMask (and some other wallet extensions) polyfill fetch / XHR and
+             * run the request object through `structuredClone`. Unfortunately the
+             * structured-clone algorithm cannot currently clone a `FormData` object
+             * which results in the `DataCloneError: FormData object could not be cloned`.
+             *
+             * To work around this, we construct the multipart body manually using a
+             * `Blob` array which *is* clone-compatible and produces the exact same
+             * HTTP payload Pinata expects.
+             */
             try {
-                const resp = await window.fetch(PINATA_API_ENDPOINT, {
+                const boundary = '----PinataFormBoundary' + (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16));
+                const header = `--${boundary}\r\n` +
+                               `Content-Disposition: form-data; name=\"file\"; filename=\"${file.name}\"\r\n` +
+                               `Content-Type: ${file.type || 'application/octet-stream'}\r\n\r\n`;
+                const footer = `\r\n--${boundary}--\r\n`;
+                const bodyBlob = new Blob([header, file, footer]);
+
+                const resp = await fetch(PINATA_API_ENDPOINT, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${PINATA_JWT}`
+                        'Authorization': `Bearer ${PINATA_JWT}`,
+                        'Content-Type': `multipart/form-data; boundary=${boundary}`
                     },
-                    body: formData,
+                    body: bodyBlob,
                     mode: 'cors'
                 });
                 return await parsePinataResponse(resp);
             } catch (err) {
-                console.warn('Fetch upload failed, trying XMLHttpRequest...', err);
+                console.error('Pinata upload failed (manual multipart):', err);
+                throw err; // propagate – caller will showStatus
             }
-
-            // Attempt 2: XMLHttpRequest fallback (avoids structuredClone on FormData)
-            return await new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', PINATA_API_ENDPOINT, true);
-                xhr.setRequestHeader('Authorization', `Bearer ${PINATA_JWT}`);
-                xhr.onreadystatechange = async function () {
-                    if (xhr.readyState === 4) {
-                        try {
-                            const hash = await parsePinataResponse(xhr);
-                            resolve(hash);
-                        } catch (e) {
-                            reject(e);
-                        }
-                    }
-                };
-                xhr.onerror = () => reject(new Error('Network error uploading to Pinata via XHR'));
-                xhr.send(formData);
-            });
         }
 
         // Crop an image file to a centered 1:1 square before uploading
