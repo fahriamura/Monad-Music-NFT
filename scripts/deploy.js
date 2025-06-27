@@ -38,13 +38,11 @@ async function main() {
   const name = await musicNFT.name();
   const symbol = await musicNFT.symbol();
   const mintPrice = await musicNFT.mintPrice();
-  const maxSupply = await musicNFT.maxSupply();
   const totalSupply = await musicNFT.totalSupply();
 
   console.log("Name:", name);
   console.log("Symbol:", symbol);
   console.log("Mint Price:", ethers.formatEther(mintPrice), "MON");
-  console.log("Max Supply:", maxSupply.toString());
   console.log("Current Supply:", totalSupply.toString());
 
   // Save deployment info
@@ -59,8 +57,7 @@ async function main() {
     contractInfo: {
       name,
       symbol,
-      mintPrice: ethers.formatEther(mintPrice),
-      maxSupply: maxSupply.toString()
+      mintPrice: ethers.formatEther(mintPrice)
     }
   };
 

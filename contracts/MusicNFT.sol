@@ -24,8 +24,7 @@ contract MusicNFT is ERC721, ERC721URIStorage, Ownable {
     mapping(uint256 => MusicMetadata) public musicData;
     mapping(address => uint256[]) public userTokens;
     
-    uint256 public mintPrice = 0.01 ether; // Mint price in MON
-    uint256 public maxSupply = 10000;
+    uint256 public mintPrice = 0; 
     
     event MusicNFTMinted(
         uint256 indexed tokenId,
@@ -51,17 +50,16 @@ contract MusicNFT is ERC721, ERC721URIStorage, Ownable {
         uint256 duration,
         string memory audioIPFSHash,
         string memory coverIPFSHash,
-        string memory tokenURI
+        string memory metadataURI
     ) public payable {
         require(msg.value >= mintPrice, "Insufficient payment");
-        require(_tokenIdCounter.current() < maxSupply, "Max supply reached");
         require(bytes(audioIPFSHash).length > 0, "Audio IPFS hash required");
         
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
         
         _safeMint(to, tokenId);
-        _setTokenURI(tokenId, tokenURI);
+        _setTokenURI(tokenId, metadataURI);
         
         musicData[tokenId] = MusicMetadata({
             title: title,
@@ -137,5 +135,53 @@ contract MusicNFT is ERC721, ERC721URIStorage, Ownable {
 
     function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721URIStorage) returns (bool) {
         return super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @dev Duplicate the given tokenId to `to` address while keeping the original token with the caller.
+     *      The new token will inherit the same metadata as the original.
+     *      Emits {MusicNFTMinted} with the new tokenId.
+     */
+    function duplicateTransfer(address to, uint256 tokenId) external {
+        require(ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(to != address(0), "Cannot transfer to zero");
+
+        uint256 newTokenId = _tokenIdCounter.current();
+        _tokenIdCounter.increment();
+
+        // Mint the duplicate NFT to the recipient
+        _safeMint(to, newTokenId);
+        _setTokenURI(newTokenId, tokenURI(tokenId));
+
+        // Copy metadata
+        MusicMetadata memory data = musicData[tokenId];
+        musicData[newTokenId] = data;
+
+        // Track ownership
+        userTokens[to].push(newTokenId);
+
+        emit MusicNFTMinted(newTokenId, to, data.title, data.artist, data.audioIPFSHash);
+    }
+
+    /**
+     * @dev Burn a token that the caller owns. Cleans up associated mappings.
+     */
+    function burnNFT(uint256 tokenId) external {
+        require(ownerOf(tokenId) == msg.sender, "Not token owner");
+
+        _burn(tokenId);
+
+        // Remove from userTokens array
+        uint256[] storage tokens = userTokens[msg.sender];
+        for (uint256 i = 0; i < tokens.length; i++) {
+            if (tokens[i] == tokenId) {
+                tokens[i] = tokens[tokens.length - 1];
+                tokens.pop();
+                break;
+            }
+        }
+
+        // Delete metadata
+        delete musicData[tokenId];
     }
 }
