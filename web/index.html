@@ -1225,55 +1225,96 @@
                     console.error('[DEBUG] Pinata non-200 body:', raw);
                     throw new Error(`Pinata upload failed: ${status}`);
                 }
+                
+                // Get the raw response text first
+                const responseText = await resp.clone().text();
+                console.log('[DEBUG] Raw Pinata response:', responseText);
+                
                 let json;
                 try {
                     json = await resp.json();
                 } catch (e) {
-                    const raw = await resp.text();
-                    console.error('Pinata response (non-JSON):', raw);
-                    throw new Error('Invalid Pinata response – see console for raw output');
+                    console.error('Pinata response parsing error:', e);
+                    console.error('Raw response:', responseText);
+                    throw new Error(`Invalid JSON response from Pinata: ${e.message}`);
                 }
+                
                 if (!json.IpfsHash) {
                     console.error('Pinata JSON without IpfsHash:', json);
-                    throw new Error('Invalid Pinata response');
+                    throw new Error('Invalid Pinata response - missing IpfsHash');
                 }
                 return json.IpfsHash;
             };
 
-            /*
-             * MetaMask (and some other wallet extensions) polyfill fetch / XHR and
-             * run the request object through `structuredClone`. Unfortunately the
-             * structured-clone algorithm cannot currently clone a `FormData` object
-             * which results in the `DataCloneError: FormData object could not be cloned`.
-             *
-             * To work around this, we construct the multipart body manually using a
-             * `Blob` array which *is* clone-compatible and produces the exact same
-             * HTTP payload Pinata expects.
-             */
+            // Try the standard FormData approach first (simpler and more reliable)
             try {
-                const boundary = '----PinataFormBoundary' + (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16));
-                const header = `--${boundary}\r\n` +
-                               `Content-Disposition: form-data; name=\"file\"; filename=\"${file.name}\"\r\n` +
-                               `Content-Type: ${file.type || 'application/octet-stream'}\r\n\r\n`;
-                const footer = `\r\n--${boundary}--\r\n`;
-                const bodyBlob = new Blob([header, file, '\r\n', footer]);
-
+                console.log('[DEBUG] Attempting standard FormData upload...');
+                const formData = new FormData();
+                formData.append('file', file);
+                
                 const resp = await fetch(PINATA_API_ENDPOINT, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${PINATA_JWT}`,
-                        'Content-Type': `multipart/form-data; boundary=${boundary}`
+                        // Don't set Content-Type - let browser set it with boundary
                     },
-                    body: bodyBlob,
+                    body: formData,
                     mode: 'cors'
                 });
+                
                 return await parsePinataResponse(resp);
-            } catch (err) {
-                console.error('Pinata upload failed (manual multipart):', err);
-                throw err; // propagate – caller will showStatus
+                
+            } catch (formDataError) {
+                console.warn('[DEBUG] FormData upload failed, trying manual multipart:', formDataError);
+                
+                // Fallback to manual multipart construction
+                try {
+                    const boundary = '----PinataFormBoundary' + Date.now().toString(16) + Math.random().toString(16).substr(2);
+                    
+                    // Ensure proper line endings and encoding
+                    const encoder = new TextEncoder();
+                    const decoder = new TextDecoder();
+                    
+                    const headerText = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${file.name}"\r\nContent-Type: ${file.type || 'application/octet-stream'}\r\n\r\n`;
+                    const footerText = `\r\n--${boundary}--\r\n`;
+                    
+                    // Convert strings to Uint8Array for precise control
+                    const headerBytes = encoder.encode(headerText);
+                    const footerBytes = encoder.encode(footerText);
+                    
+                    // Read file as ArrayBuffer
+                    const fileBuffer = await file.arrayBuffer();
+                    
+                    // Combine all parts
+                    const totalLength = headerBytes.length + fileBuffer.byteLength + footerBytes.length;
+                    const combined = new Uint8Array(totalLength);
+                    combined.set(headerBytes, 0);
+                    combined.set(new Uint8Array(fileBuffer), headerBytes.length);
+                    combined.set(footerBytes, headerBytes.length + fileBuffer.byteLength);
+                    
+                    const bodyBlob = new Blob([combined], { type: 'application/octet-stream' });
+                    
+                    console.log('[DEBUG] Manual multipart - boundary:', boundary);
+                    console.log('[DEBUG] Manual multipart - total size:', totalLength);
+                    
+                    const resp = await fetch(PINATA_API_ENDPOINT, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${PINATA_JWT}`,
+                            'Content-Type': `multipart/form-data; boundary=${boundary}`
+                        },
+                        body: bodyBlob,
+                        mode: 'cors'
+                    });
+                    
+                    return await parsePinataResponse(resp);
+                    
+                } catch (manualError) {
+                    console.error('[DEBUG] Manual multipart also failed:', manualError);
+                    throw new Error(`All upload methods failed. FormData: ${formDataError.message}, Manual: ${manualError.message}`);
+                }
             }
         }
-
         // Crop an image file to a centered 1:1 square before uploading
         function cropImageToSquare(file) {
             return new Promise((resolve, reject) => {
