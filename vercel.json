@@ -1,15 +1,4 @@
 {
   "version": 2,
-  "env": {
-    "NEXT_PUBLIC_DID_TOKEN": "@did_token",
-    "NEXT_PUBLIC_CONTRACT_ADDRESS": "@contract_address",
-    "NEXT_PUBLIC_PINATA_JWT": "@pinata_jwt"
-  },
-  "build": {
-    "env": {
-      "NEXT_PUBLIC_DID_TOKEN": "@did_token",
-      "NEXT_PUBLIC_CONTRACT_ADDRESS": "@contract_address",
-      "NEXT_PUBLIC_PINATA_JWT": "@pinata_jwt"
-    }
-  }
+  "outputDirectory": "web"
 } 
