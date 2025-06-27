@@ -1256,7 +1256,7 @@
                                `Content-Disposition: form-data; name=\"file\"; filename=\"${file.name}\"\r\n` +
                                `Content-Type: ${file.type || 'application/octet-stream'}\r\n\r\n`;
                 const footer = `\r\n--${boundary}--\r\n`;
-                const bodyBlob = new Blob([header, file, footer]);
+                const bodyBlob = new Blob([header, file, '\r\n', footer]);
 
                 const resp = await fetch(PINATA_API_ENDPOINT, {
                     method: 'POST',
