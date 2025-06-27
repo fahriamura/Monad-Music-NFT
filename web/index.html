@@ -1226,9 +1226,8 @@
                     throw new Error(`Pinata upload failed: ${status}`);
                 }
                 
-                // Get the raw response text first
+                // Get the raw response text first (for potential debugging)
                 const responseText = await resp.clone().text();
-                console.log('[DEBUG] Raw Pinata response:', responseText);
                 
                 let json;
                 try {
@@ -1384,19 +1383,11 @@
                 
                 showStatus('Uploading files to IPFS via Pinata...', 'info');
 
-                // ===== DEBUG: print file sizes =====
-                console.log('[DEBUG] audio size', (audioFile.size / 1e6).toFixed(2), 'MB');
-                if (coverFile) {
-                    console.log('[DEBUG] cover size', (coverFile.size / 1e6).toFixed(2), 'MB');
-                }
-
                 // Upload audio to Pinata and get its IPFS hash
                 const audioIPFSHash = await uploadToPinata(audioFile);
-                console.log('Audio uploaded to Pinata:', audioIPFSHash);
 
                 // Calculate audio duration in seconds (rounded up)
                 const durationSeconds = await getAudioDuration(audioFile);
-                console.log('Audio duration (s):', durationSeconds);
 
                 // Upload cover art if provided
                 let coverIPFSHash = '';
@@ -1404,7 +1395,6 @@
                     // Crop to 1:1 before uploading
                     const croppedCover = await cropImageToSquare(coverFile);
                     coverIPFSHash = await uploadToPinata(croppedCover);
-                    console.log('Cover uploaded to Pinata:', coverIPFSHash);
                 }
 
                 // Upload metadata JSON
@@ -1506,11 +1496,6 @@
                     console.error('Error checking existing accounts:', error);
                 });
         }
-
-        // Log DID token, JWT & contract once for debugging (remove in production!)
-        console.log('DID Token initialized:', DID_TOKEN);
-        console.log('PINATA_JWT:', PINATA_JWT);
-        console.log('CONTRACT_ADDRESS:', CONTRACT_ADDRESS);
 
         // Add these new functions for handling actions
         async function burnNFT(tokenId) {
