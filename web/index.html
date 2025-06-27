@@ -757,7 +757,6 @@
         const loadEnv = async () => {
             // First try window._env_ (injected by Vercel)
             if (window._env_) {
-                console.log('Using injected environment variables');
                 return window._env_;
             }
 
@@ -817,9 +816,10 @@
         const PINATA_JWT = ENV.PINATA_JWT || ENV.NEXT_PUBLIC_PINATA_JWT || '';
         const CONTRACT_ADDRESS = ENV.CONTRACT_ADDRESS || ENV.NEXT_PUBLIC_CONTRACT_ADDRESS || '';
 
-        if (!DID_TOKEN || !CONTRACT_ADDRESS || !PINATA_JWT) {
+        // Only show warning if we're not in production
+        if ((!DID_TOKEN || !CONTRACT_ADDRESS || !PINATA_JWT) && window.location.hostname === 'localhost') {
             console.warn('Some environment variables are missing. Please check your configuration.');
-            showStatus('Warning: Some configuration values are missing. Some features may not work properly.', 'warning');
+            showStatus('Please configure your environment variables in .env or .env.json', 'info');
         }
         
         // Web3.Storage alternative - menggunakan Pinata sebagai backup

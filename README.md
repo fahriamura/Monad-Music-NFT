@@ -68,14 +68,29 @@ const CONTRACT_ADDRESS = "0xYourContractAddressHere";
 
 ### 5. Setup Environment Files
 
-Copy the example environment files to their respective locations:
+Create the following environment files (these files are git-ignored):
 
+1. Create `.env` in root directory:
 ```bash
-cp .env.example .env
-cp web/.env.json.example web/.env.json
+DID_TOKEN=your_did_token_here
+CONTRACT_ADDRESS=your_contract_address_here
+PINATA_JWT=your_pinata_jwt_here
 ```
 
-Ensure you update these files with your specific configuration details.
+2. Create `web/.env.json`:
+```json
+{
+    "DID_TOKEN": "your_did_token_here",
+    "CONTRACT_ADDRESS": "your_contract_address_here",
+    "PINATA_JWT": "your_pinata_jwt_here"
+}
+```
+
+⚠️ IMPORTANT: 
+- Never commit these files to git
+- Never share your actual tokens/keys
+- The actual values should be kept private
+- For production, use Vercel environment variables
 
 ### 6. Vercel Deployment Setup
 
