@@ -1009,11 +1009,14 @@
                 
                 // Check network
                 const network = await web3Provider.getNetwork();
-                if (network.chainId !== 10143n) { // Monad Testnet chainId
-                    showStatus('Please switch to Monad Testnet', 'info');
-                } else {
-                    initializeContract();
+                if (network.chainId !== 10143n) {
+                    const switched = await switchToMonadTestnet();
+                    if (!switched) {
+                        showStatus('Please switch to Monad Testnet in your wallet', 'error');
+                        return;
+                    }
                 }
+                initializeContract();
             } catch (error) {
                 console.error('Error connecting wallet:', error);
                 showStatus('Error connecting wallet: ' + error.message, 'error');
@@ -1495,6 +1498,17 @@
                 .catch(error => {
                     console.error('Error checking existing accounts:', error);
                 });
+
+            // React to network changes
+            window.ethereum.on('chainChanged', async (chainIdHex) => {
+                if (chainIdHex !== MONAD_TESTNET_CONFIG.chainId) {
+                    showStatus('Wrong network detected. Switching to Monad Testnet...', 'info');
+                    await switchToMonadTestnet();
+                } else {
+                    // re-init contracts with new provider
+                    if (walletSigner) initializeContract();
+                }
+            });
         }
 
         // Add these new functions for handling actions
@@ -1668,6 +1682,30 @@
         window.sendNFT = sendNFT;
         window.mintMusicNFT = mintMusicNFT;
         window.convertYoutubeToMp3 = convertYoutubeToMp3;
+
+        // Try switching (or adding) Monad Testnet in the user's wallet (EIP-3326 / EIP-3085)
+        async function switchToMonadTestnet() {
+            if (!window.ethereum) return false;
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: MONAD_TESTNET_CONFIG.chainId }]
+                });
+                return true;
+            } catch (switchError) {
+                // 4902 = chain not added to wallet → try addEthereumChain
+                if (switchError.code === 4902) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [MONAD_TESTNET_CONFIG]
+                        });
+                        return true;
+                    } catch (_) { /* fall-through */ }
+                }
+                return false;
+            }
+        }
     };
     </script>
 </body>
