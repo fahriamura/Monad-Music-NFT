@@ -1218,6 +1218,11 @@
             const parsePinataResponse = async (resp) => {
                 if (!resp || resp.status !== 200) {
                     const status = resp ? `${resp.status} ${resp.statusText}` : 'No response';
+                    let raw = '';
+                    try {
+                        raw = resp ? await resp.text() : '';
+                    } catch (_) {/* ignore */}
+                    console.error('[DEBUG] Pinata non-200 body:', raw);
                     throw new Error(`Pinata upload failed: ${status}`);
                 }
                 let json;
@@ -1337,6 +1342,12 @@
                 mintButton.textContent = 'Minting...';
                 
                 showStatus('Uploading files to IPFS via Pinata...', 'info');
+
+                // ===== DEBUG: print file sizes =====
+                console.log('[DEBUG] audio size', (audioFile.size / 1e6).toFixed(2), 'MB');
+                if (coverFile) {
+                    console.log('[DEBUG] cover size', (coverFile.size / 1e6).toFixed(2), 'MB');
+                }
 
                 // Upload audio to Pinata and get its IPFS hash
                 const audioIPFSHash = await uploadToPinata(audioFile);
