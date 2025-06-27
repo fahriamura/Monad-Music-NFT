@@ -1220,8 +1220,16 @@
                     const status = resp ? `${resp.status} ${resp.statusText}` : 'No response';
                     throw new Error(`Pinata upload failed: ${status}`);
                 }
-                const json = await resp.json();
+                let json;
+                try {
+                    json = await resp.json();
+                } catch (e) {
+                    const raw = await resp.text();
+                    console.error('Pinata response (non-JSON):', raw);
+                    throw new Error('Invalid Pinata response – see console for raw output');
+                }
                 if (!json.IpfsHash) {
+                    console.error('Pinata JSON without IpfsHash:', json);
                     throw new Error('Invalid Pinata response');
                 }
                 return json.IpfsHash;
@@ -1447,8 +1455,10 @@
                 });
         }
 
-        // Log DID token on startup
+        // Log DID token, JWT & contract once for debugging (remove in production!)
         console.log('DID Token initialized:', DID_TOKEN);
+        console.log('PINATA_JWT:', PINATA_JWT);
+        console.log('CONTRACT_ADDRESS:', CONTRACT_ADDRESS);
 
         // Add these new functions for handling actions
         async function burnNFT(tokenId) {
