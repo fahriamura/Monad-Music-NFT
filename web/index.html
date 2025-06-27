@@ -755,12 +755,33 @@
     <script>
     window.onload = async function() {
         const loadEnv = async () => {
-            // First try window._env_ (injected by Vercel)
-            if (window._env_) {
-                return window._env_;
+            // Check if we're in production (Vercel)
+            const isProduction = window.location.hostname !== 'localhost' && 
+                               window.location.hostname !== '127.0.0.1';
+
+            // In production, only use window._env_ or meta tags
+            if (isProduction) {
+                // Try window._env_ (injected by Vercel)
+                if (window._env_) {
+                    return window._env_;
+                }
+
+                // Try meta tags
+                const envFromMeta = {};
+                document.querySelectorAll('meta[name^="env-"]').forEach(meta => {
+                    const key = meta.getAttribute('name').replace('env-', '');
+                    envFromMeta[key] = meta.getAttribute('content');
+                });
+                if (Object.keys(envFromMeta).length) {
+                    return envFromMeta;
+                }
+
+                // In production, return empty object if no env found
+                // Variables will be taken from NEXT_PUBLIC_ env vars
+                return {};
             }
 
-            // Then try loading from various env files
+            // In development, try loading from env files
             const parseEnvText = (txt) => txt.split('\n').reduce((acc, line) => {
                 const [key, ...rest] = line.split('=');
                 if (!key || key.startsWith('#')) return acc;
@@ -768,17 +789,14 @@
                 return acc;
             }, {});
 
+            // Only try local files in development
             const candidates = [
+                './env.json',
+                '../env.json',
                 './.env.json',
-                '.env.json',
+                '../.env.json',
                 './.env',
-                '.env',
-                '/.env',
-                '../.env',
-                '/env',
-                '../env',
-                '/env.json',
-                '../env.json'
+                '../.env'
             ];
 
             for (const path of candidates) {
@@ -796,16 +814,6 @@
                 } catch (_) { /* ignore and try next */ }
             }
 
-            // If no env files found, try getting from HTML meta tags
-            const envFromMeta = {};
-            document.querySelectorAll('meta[name^="env-"]').forEach(meta => {
-                const key = meta.getAttribute('name').replace('env-', '');
-                envFromMeta[key] = meta.getAttribute('content');
-            });
-            if (Object.keys(envFromMeta).length) {
-                return envFromMeta;
-            }
-
             return {};
         };
 
@@ -816,9 +824,10 @@
         const PINATA_JWT = ENV.PINATA_JWT || ENV.NEXT_PUBLIC_PINATA_JWT || '';
         const CONTRACT_ADDRESS = ENV.CONTRACT_ADDRESS || ENV.NEXT_PUBLIC_CONTRACT_ADDRESS || '';
 
-        // Only show warning if we're not in production
-        if ((!DID_TOKEN || !CONTRACT_ADDRESS || !PINATA_JWT) && window.location.hostname === 'localhost') {
-            console.warn('Some environment variables are missing. Please check your configuration.');
+        // Only show warning in development
+        if ((!DID_TOKEN || !CONTRACT_ADDRESS || !PINATA_JWT) && 
+            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+            console.warn('Local development: Please configure your environment variables in .env or .env.json');
             showStatus('Please configure your environment variables in .env or .env.json', 'info');
         }
         
